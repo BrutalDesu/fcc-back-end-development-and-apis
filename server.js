@@ -30,6 +30,12 @@ function send(res, status, body, headers = {}) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
+    // The freeCodeCamp grader fetches the submitted URL from the browser, so the
+    // responses have to be readable cross-origin.
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type,Accept,Origin,X-Requested-With',
+    'Access-Control-Max-Age': '86400',
     ...headers
   });
   res.end(payload);
@@ -189,7 +195,14 @@ async function shortUrlApi(req, res, url) {
     if (slug === undefined) return send(res, 200, { error: 'invalid url' });
     const original = shortUrlStore.get(String(slug));
     if (!original) return send(res, 404, { error: 'not found' });
-    res.writeHead(302, { Location: original, 'Cache-Control': 'no-store' });
+    res.writeHead(302, {
+      Location: original,
+      'Cache-Control': 'no-store',
+      // The redirect has to stay readable for the cross-origin grader.
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type,Accept,Origin,X-Requested-With'
+    });
     return res.end();
   }
 
@@ -314,14 +327,65 @@ code{color:#79c0ff}li{margin:6px 0;color:#c9d1d9}</style></head>
 <li><code>POST /api/fileanalyse</code> &mdash; file metadata microservice</li></ul>
 </div></body></html>`;
 
+const UPLOAD_PAGE = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>File Metadata Microservice</title>
+<style>body{font-family:system-ui,sans-serif;background:#0d1117;color:#e6edf3;margin:0;padding:48px 24px}
+.wrap{max-width:640px;margin:0 auto}h1{font-size:26px;margin:0 0 8px}p{color:#8b949e;line-height:1.6}
+label{display:block;margin:22px 0 8px;color:#8b949e;font-size:14px}
+input[type=file]{display:block;width:100%;padding:12px;background:#161b22;border:1px solid #30363d;border-radius:10px;color:#e6edf3}
+button{margin-top:24px;font:inherit;padding:11px 22px;border:none;border-radius:999px;background:#1f6f4a;color:#eafff4;cursor:pointer}
+pre{margin-top:24px;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px;overflow:auto}
+code{color:#79c0ff}</style></head>
+<body><div class="wrap">
+<h1>File Metadata Microservice</h1>
+<p>Upload a file to receive its name, MIME type and size in bytes as JSON.</p>
+<form id="upload-form" method="POST" action="/api/fileanalyse" enctype="multipart/form-data">
+  <label for="upfile">Choose a file</label>
+  <input id="upfile" name="upfile" type="file" required>
+  <button type="submit">Upload</button>
+</form>
+<pre id="result"></pre>
+</div>
+<script>
+document.getElementById('upload-form').addEventListener('submit', function (event) {
+  event.preventDefault();
+  var form = event.target;
+  fetch('/api/fileanalyse', { method: 'POST', body: new FormData(form) })
+    .then(function (response) { return response.json(); })
+    .then(function (data) {
+      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+    })
+    .catch(function (error) {
+      document.getElementById('result').textContent = String(error);
+    });
+});
+</script>
+</body></html>`;
+
 /* -------------------------------------------------------------- server */
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  console.log(`[${API}] ${req.method} ${req.url} origin=${req.headers.origin || '-'}`);
+
+  // Preflight requests for the browser-based grader.
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type,Accept,Origin,X-Requested-With',
+      'Access-Control-Max-Age': '86400'
+    });
+    return res.end();
+  }
 
   if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '')) {
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-    return res.end(LANDING);
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'Access-Control-Allow-Origin': '*'
+    });
+    return res.end(API === 'filemetadata' ? UPLOAD_PAGE : LANDING);
   }
 
   try {
