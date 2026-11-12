@@ -256,150 +256,155 @@ const ISSUE_DATA = {
   issue_text: 'Everything is broken',
   created_by: 'fcc'
 };
+// The live service keeps its issues in memory, so every run uses its own project
+// names. That keeps the assertions deterministic and leaves the grader's own
+// project ("fcc-project") untouched.
+let runCounter = 0;
+const project = (name) => `${name}-${runCounter}`;
 
 function issueTrackerTests() {
   suite('Unit Tests', () => {
     test('createIssue should return the submitted fields', (assert) => {
-      const issue = services.createIssue('unit', ISSUE_DATA);
+      const issue = services.createIssue(project('unit'), ISSUE_DATA);
       assert.equal(issue.issue_title, 'Faux Issue');
       assert.equal(issue.issue_text, 'Everything is broken');
       assert.equal(issue.created_by, 'fcc');
     });
     test('createIssue should default the optional fields to empty strings', (assert) => {
-      const issue = services.createIssue('unit', ISSUE_DATA);
+      const issue = services.createIssue(project('unit'), ISSUE_DATA);
       assert.equal(issue.assigned_to, '');
       assert.equal(issue.status_text, '');
     });
     test('createIssue should add the created_on, updated_on, open and _id fields', (assert) => {
-      const issue = services.createIssue('unit', ISSUE_DATA);
+      const issue = services.createIssue(project('unit'), ISSUE_DATA);
       assert.isNumber(Date.parse(issue.created_on));
       assert.isNumber(Date.parse(issue.updated_on));
       assert.isTrue(issue.open);
       assert.isNotEmpty(issue._id);
     });
     test('createIssue should mark an issue closed when the status says so', (assert) => {
-      const issue = services.createIssue('unit', Object.assign({}, ISSUE_DATA, { status_text: 'closed' }));
+      const issue = services.createIssue(project('unit'), Object.assign({}, ISSUE_DATA, { status_text: 'closed' }));
       assert.isFalse(issue.open);
     });
     test('createIssue should report missing required fields', (assert) => {
-      assert.equal(services.createIssue('unit', { created_by: 'fcc' }).error, 'required field(s) missing');
+      assert.equal(services.createIssue(project('unit'), { created_by: 'fcc' }).error, 'required field(s) missing');
     });
     test('getIssues should return an array of issues for the project', (assert) => {
-      const issues = services.getIssues('unit-list', {});
+      const issues = services.getIssues(project('unit-list'), {});
       assert.isArray(issues);
     });
     test('getIssues should filter on any field', (assert) => {
-      services.createIssue('unit-filter', Object.assign({}, ISSUE_DATA, { created_by: 'Alice' }));
-      services.createIssue('unit-filter', Object.assign({}, ISSUE_DATA, { created_by: 'Bob' }));
-      assert.lengthOf(services.getIssues('unit-filter', { created_by: 'Alice' }), 1);
+      services.createIssue(project('unit-filter'), Object.assign({}, ISSUE_DATA, { created_by: 'Alice' }));
+      services.createIssue(project('unit-filter'), Object.assign({}, ISSUE_DATA, { created_by: 'Bob' }));
+      assert.lengthOf(services.getIssues(project('unit-filter'), { created_by: 'Alice' }), 1);
     });
     test('getIssues should be able to filter by _id', (assert) => {
-      const issue = services.createIssue('unit-id', ISSUE_DATA);
-      const found = services.getIssues('unit-id', { _id: issue._id });
+      const issue = services.createIssue(project('unit-id'), ISSUE_DATA);
+      const found = services.getIssues(project('unit-id'), { _id: issue._id });
       assert.lengthOf(found, 1);
       assert.equal(found[0]._id, issue._id);
     });
     test('updateIssue should update the given fields', (assert) => {
-      const issue = services.createIssue('unit-update', ISSUE_DATA);
-      const result = services.updateIssue('unit-update', { _id: issue._id, issue_text: 'New Issue Text' });
+      const issue = services.createIssue(project('unit-update'), ISSUE_DATA);
+      const result = services.updateIssue(project('unit-update'), { _id: issue._id, issue_text: 'New Issue Text' });
       assert.equal(result.result, 'successfully updated');
       assert.equal(result._id, issue._id);
     });
     test('updateIssue should report a missing _id', (assert) => {
-      assert.equal(services.updateIssue('unit-update', {}).error, 'missing _id');
+      assert.equal(services.updateIssue(project('unit-update'), {}).error, 'missing _id');
     });
     test('updateIssue should report when no update fields were sent', (assert) => {
-      assert.equal(services.updateIssue('unit-update', { _id: 'abc' }).error, 'no update field(s) sent');
+      assert.equal(services.updateIssue(project('unit-update'), { _id: 'abc' }).error, 'no update field(s) sent');
     });
     test('updateIssue should report an unknown _id', (assert) => {
-      assert.equal(services.updateIssue('unit-update', { _id: 'abc', issue_text: 'x' }).error, 'could not update');
+      assert.equal(services.updateIssue(project('unit-update'), { _id: 'abc', issue_text: 'x' }).error, 'could not update');
     });
     test('deleteIssue should delete the issue', (assert) => {
-      const issue = services.createIssue('unit-delete', ISSUE_DATA);
-      const result = services.deleteIssue('unit-delete', { _id: issue._id });
+      const issue = services.createIssue(project('unit-delete'), ISSUE_DATA);
+      const result = services.deleteIssue(project('unit-delete'), { _id: issue._id });
       assert.equal(result.result, 'successfully deleted');
-      assert.lengthOf(services.getIssues('unit-delete', {}), 0);
+      assert.lengthOf(services.getIssues(project('unit-delete'), {}), 0);
     });
     test('deleteIssue should report a missing _id', (assert) => {
-      assert.equal(services.deleteIssue('unit-delete', {}).error, 'missing _id');
+      assert.equal(services.deleteIssue(project('unit-delete'), {}).error, 'missing _id');
     });
     test('deleteIssue should report an unknown _id', (assert) => {
-      assert.equal(services.deleteIssue('unit-delete', { _id: 'abc' }).error, 'could not delete');
+      assert.equal(services.deleteIssue(project('unit-delete'), { _id: 'abc' }).error, 'could not delete');
     });
   });
 
   suite('Functional Tests', () => {
     test('POST /api/issues/{project} creates an issue', (assert) => {
-      const body = call(ISSUE_API, 'POST', '/api/issues/fcc-project', { body: ISSUE_DATA });
+      const body = call(ISSUE_API, 'POST', '/api/issues/' + project('fcc-project'), { body: ISSUE_DATA });
       assert.isObject(body);
       assert.equal(body.issue_title, 'Faux Issue');
       assert.isNotEmpty(body._id);
     });
     test('POST /api/issues/{project} returns the optional fields as empty strings', (assert) => {
-      const body = call(ISSUE_API, 'POST', '/api/issues/fcc-project', { body: ISSUE_DATA });
+      const body = call(ISSUE_API, 'POST', '/api/issues/' + project('fcc-project'), { body: ISSUE_DATA });
       assert.equal(body.assigned_to, '');
       assert.equal(body.status_text, '');
       assert.isTrue(body.open);
     });
     test('POST /api/issues/{project} reports missing required fields', (assert) => {
-      const body = call(ISSUE_API, 'POST', '/api/issues/fcc-project', { body: { created_by: 'fcc' } });
+      const body = call(ISSUE_API, 'POST', '/api/issues/' + project('fcc-project'), { body: { created_by: 'fcc' } });
       assert.equal(body.error, 'required field(s) missing');
     });
     test('GET /api/issues/{project} returns an array of issues', (assert) => {
-      call(ISSUE_API, 'POST', '/api/issues/fcc-list', { body: ISSUE_DATA });
-      const body = call(ISSUE_API, 'GET', '/api/issues/fcc-list');
+      call(ISSUE_API, 'POST', '/api/issues/' + project('fcc-list'), { body: ISSUE_DATA });
+      const body = call(ISSUE_API, 'GET', '/api/issues/' + project('fcc-list'));
       assert.isArray(body);
       assert.isAtLeast(body.length, 1);
     });
     test('GET /api/issues/{project} can filter on a field', (assert) => {
-      call(ISSUE_API, 'POST', '/api/issues/fcc-filter', { body: Object.assign({}, ISSUE_DATA, { created_by: 'Alice' }) });
-      call(ISSUE_API, 'POST', '/api/issues/fcc-filter', { body: Object.assign({}, ISSUE_DATA, { created_by: 'Bob' }) });
-      const body = call(ISSUE_API, 'GET', '/api/issues/fcc-filter', { query: { created_by: 'Alice' } });
+      call(ISSUE_API, 'POST', '/api/issues/' + project('fcc-filter'), { body: Object.assign({}, ISSUE_DATA, { created_by: 'Alice' }) });
+      call(ISSUE_API, 'POST', '/api/issues/' + project('fcc-filter'), { body: Object.assign({}, ISSUE_DATA, { created_by: 'Bob' }) });
+      const body = call(ISSUE_API, 'GET', '/api/issues/' + project('fcc-filter'), { query: { created_by: 'Alice' } });
       assert.lengthOf(body, 1);
     });
     test('GET /api/issues/{project} can filter on several fields', (assert) => {
-      call(ISSUE_API, 'POST', '/api/issues/fcc-multi', { body: Object.assign({}, ISSUE_DATA, { created_by: 'Alice', assigned_to: 'Bob' }) });
-      call(ISSUE_API, 'POST', '/api/issues/fcc-multi', { body: Object.assign({}, ISSUE_DATA, { created_by: 'Alice', assigned_to: 'Eric' }) });
-      const body = call(ISSUE_API, 'GET', '/api/issues/fcc-multi', { query: { created_by: 'Alice', assigned_to: 'Bob' } });
+      call(ISSUE_API, 'POST', '/api/issues/' + project('fcc-multi'), { body: Object.assign({}, ISSUE_DATA, { created_by: 'Alice', assigned_to: 'Bob' }) });
+      call(ISSUE_API, 'POST', '/api/issues/' + project('fcc-multi'), { body: Object.assign({}, ISSUE_DATA, { created_by: 'Alice', assigned_to: 'Eric' }) });
+      const body = call(ISSUE_API, 'GET', '/api/issues/' + project('fcc-multi'), { query: { created_by: 'Alice', assigned_to: 'Bob' } });
       assert.lengthOf(body, 1);
     });
     test('GET /api/issues/{project} can filter on _id', (assert) => {
-      const created = call(ISSUE_API, 'POST', '/api/issues/fcc-id', { body: ISSUE_DATA });
-      const body = call(ISSUE_API, 'GET', '/api/issues/fcc-id', { query: { _id: created._id } });
+      const created = call(ISSUE_API, 'POST', '/api/issues/' + project('fcc-id'), { body: ISSUE_DATA });
+      const body = call(ISSUE_API, 'GET', '/api/issues/' + project('fcc-id'), { query: { _id: created._id } });
       assert.lengthOf(body, 1);
     });
     test('PUT /api/issues/{project} updates an issue', (assert) => {
-      const created = call(ISSUE_API, 'POST', '/api/issues/fcc-put', { body: ISSUE_DATA });
-      const body = call(ISSUE_API, 'PUT', '/api/issues/fcc-put', {
+      const created = call(ISSUE_API, 'POST', '/api/issues/' + project('fcc-put'), { body: ISSUE_DATA });
+      const body = call(ISSUE_API, 'PUT', '/api/issues/' + project('fcc-put'), {
         body: { _id: created._id, issue_text: 'New Issue Text' }
       });
       assert.deepEqual(body, { result: 'successfully updated', _id: created._id });
     });
     test('PUT /api/issues/{project} reports a missing _id', (assert) => {
-      const body = call(ISSUE_API, 'PUT', '/api/issues/fcc-put', { body: {} });
+      const body = call(ISSUE_API, 'PUT', '/api/issues/' + project('fcc-put'), { body: {} });
       assert.equal(body.error, 'missing _id');
     });
     test('PUT /api/issues/{project} reports when no update fields were sent', (assert) => {
-      const body = call(ISSUE_API, 'PUT', '/api/issues/fcc-put', { body: { _id: 'abc' } });
+      const body = call(ISSUE_API, 'PUT', '/api/issues/' + project('fcc-put'), { body: { _id: 'abc' } });
       assert.deepEqual(body, { error: 'no update field(s) sent', _id: 'abc' });
     });
     test('PUT /api/issues/{project} reports an unknown _id', (assert) => {
-      const body = call(ISSUE_API, 'PUT', '/api/issues/fcc-put', {
+      const body = call(ISSUE_API, 'PUT', '/api/issues/' + project('fcc-put'), {
         body: { _id: '5f665eb46e296f6b9b6a504d', issue_text: 'New Issue Text' }
       });
       assert.deepEqual(body, { error: 'could not update', _id: '5f665eb46e296f6b9b6a504d' });
     });
     test('DELETE /api/issues/{project} deletes an issue', (assert) => {
-      const created = call(ISSUE_API, 'POST', '/api/issues/fcc-del', { body: ISSUE_DATA });
-      const body = call(ISSUE_API, 'DELETE', '/api/issues/fcc-del', { body: { _id: created._id } });
+      const created = call(ISSUE_API, 'POST', '/api/issues/' + project('fcc-del'), { body: ISSUE_DATA });
+      const body = call(ISSUE_API, 'DELETE', '/api/issues/' + project('fcc-del'), { body: { _id: created._id } });
       assert.deepEqual(body, { result: 'successfully deleted', _id: created._id });
     });
     test('DELETE /api/issues/{project} reports a missing _id', (assert) => {
-      const body = call(ISSUE_API, 'DELETE', '/api/issues/fcc-del', { body: {} });
+      const body = call(ISSUE_API, 'DELETE', '/api/issues/' + project('fcc-del'), { body: {} });
       assert.deepEqual(body, { error: 'missing _id' });
     });
     test('DELETE /api/issues/{project} reports an unknown _id', (assert) => {
-      const body = call(ISSUE_API, 'DELETE', '/api/issues/fcc-del', {
+      const body = call(ISSUE_API, 'DELETE', '/api/issues/' + project('fcc-del'), {
         body: { _id: '5f665eb46e296f6b9b6a504d' }
       });
       assert.deepEqual(body, { error: 'could not delete', _id: '5f665eb46e296f6b9b6a504d' });
@@ -816,6 +821,7 @@ const SUITES = {
 function run(apiName) {
   results.length = 0;
   contextStack.length = 0;
+  runCounter += 1;
   const suite = SUITES[apiName];
   if (suite) suite();
   return results.slice();
