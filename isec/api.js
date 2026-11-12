@@ -96,7 +96,7 @@ function messageBoardHandler(request) {
       return { status: 200, type: JSON_TYPE, body: services.listThreads(board) };
     }
     if (request.method === 'PUT') {
-      return { status: 200, type: JSON_TYPE, body: services.reportThread(board, body) };
+      return { status: 200, type: TEXT, body: services.reportThread(board, body) };
     }
     if (request.method === 'DELETE') {
       return { status: 200, type: TEXT, body: services.deleteThread(board, body) };
