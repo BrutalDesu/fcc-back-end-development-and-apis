@@ -1,0 +1,16 @@
+{
+  "name": "fcc-back-end-development-and-apis",
+  "version": "1.0.0",
+  "private": true,
+  "description": "freeCodeCamp Back End Development and APIs microservices (Node.js standard library only)",
+  "main": "server.js",
+  "scripts": {
+    "start:timestamp": "node server.js",
+    "start:headers": "node server.js",
+    "start:shorturl": "node server.js",
+    "start:exercises": "node server.js",
+    "start:filemetadata": "node server.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}
