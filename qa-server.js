@@ -94,6 +94,7 @@ function nowStamp() {
 
 /* ------------------------------------------------ api: metric-imperial */
 
+// Conversion factors, matching the freeCodeCamp reference implementation.
 const CONVERSIONS = {
   gal: { factor: 3.78541, other: 'l' },
   l: { factor: 1 / 3.78541, other: 'gal' },
@@ -102,6 +103,10 @@ const CONVERSIONS = {
   mi: { factor: 1.60934, other: 'km' },
   km: { factor: 1 / 1.60934, other: 'mi' }
 };
+
+// Round to six decimals so that values such as 10 gal (37.854100000000004) are
+// reported as 37.8541, while 1 lbs stays exactly 0.453592.
+const round6 = (value) => Math.round(value * 1e6) / 1e6;
 
 function parseConvertInput(input) {
   const raw = String(input === undefined ? '' : input).trim();
@@ -137,7 +142,7 @@ function parseConvertInput(input) {
   return {
     initNum,
     initUnit: displayUnit,
-    returnNum: initNum * factor,
+    returnNum: round6(initNum * factor),
     returnUnit: displayOther
   };
 }
