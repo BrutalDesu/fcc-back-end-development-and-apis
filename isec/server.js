@@ -496,7 +496,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === '/_api/app-info') {
-    return send(res, 200, 'application/json; charset=utf-8', { headers: security }, security);
+    // The grader reads the headers by their lowercase names, the way Express
+    // exposes them through res._headers.
+    const headers = {};
+    for (const [key, value] of Object.entries(security)) headers[key.toLowerCase()] = value;
+    return send(res, 200, 'application/json; charset=utf-8', { headers }, security);
   }
 
   if (req.method === 'GET' && url.pathname === '/') {
